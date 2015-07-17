@@ -24,6 +24,7 @@ private:
 	leveldb::DB* db;
 	leveldb::DB* meta_db;
 	leveldb::Options options;
+	Config* p_conf_;	
 	int sync_speed_;
 
 	std::vector<Slave *> slaves;
@@ -34,7 +35,8 @@ public:
 	
 	~SSDB();
 	static SSDB* open(const Config &conf, const std::string &base_dir);
-
+	int slave_of(const std::string &var1, const std::string &var2);
+	int slave_stop();
 	// return (start, end], not include start
 	Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit) const;
 	Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit) const;

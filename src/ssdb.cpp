@@ -4,7 +4,7 @@
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
-
+#include <stdlib.h>
 #include "t_kv.h"
 #include "t_hash.h"
 #include "t_zset.h"
@@ -36,6 +36,55 @@ SSDB::~SSDB(){
 	}
 	log_debug("SSDB finalized");
 }
+int  SSDB::slave_stop(){
+	std::vector<Slave *>::iterator it = this->slaves.begin();
+	for(; it != this->slaves.end(); ++it){
+		Slave* p = *it;
+		p->stop();
+	}
+	return 0;
+}
+
+int SSDB::slave_of(const std::string &var1, const std::string &var2){
+	// slaves
+	log_debug("slave of start");
+	const Config *repl_conf = p_conf_->get("replication");
+	if (repl_conf != NULL) {
+		std::vector<Config *> children = repl_conf->children;
+		for (std::vector<Config *>::iterator it = children.begin();
+				it != children.end(); it++) {
+
+			std::string ip = var1;
+			int port = atoi(var2.c_str() );
+			if (ip == "" || port <= 0 || port > 65535) {
+				log_warn("slaveof: %s:%d", ip.c_str(), port);
+				return -1;
+			}
+			bool is_mirror = false;
+			std::string type = "sync";
+			if (type == "mirror") {
+				is_mirror = true;
+			} else {
+				type = "sync";
+				is_mirror = false;
+			}
+
+			std::string id = "";
+
+			log_info("slaveof: %s:%d, type: %s", ip.c_str(), port,
+					type.c_str());
+			Slave *slave = new Slave(this, this->meta_db, ip.c_str(), port,
+					is_mirror);
+			if (!id.empty()) {
+				slave->set_id(id);
+			}
+			slave->start();
+			this->slaves.push_back(slave);
+		}
+	}
+	return 0;
+}
+
 
 SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	std::string main_db_path = base_dir + "/data";
@@ -76,6 +125,8 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	log_info("sync_speed       : %d MB/s", sync_speed);
 
 	SSDB *ssdb = new SSDB();
+	
+	ssdb->p_conf_ =(Config *) (&conf);
 	//
 	ssdb->options.create_if_missing = true;
 	ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);

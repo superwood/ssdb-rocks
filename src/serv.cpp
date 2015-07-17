@@ -38,7 +38,7 @@ struct BytesHash{
 
 
 static proc_map_t proc_map;
-
+/*add slave_of and rangs cmd for ssdb*/
 #define DEF_PROC(f) static int proc_##f(Server *serv, Link *link, const Request &req, Response *resp)
 	DEF_PROC(get);
 	DEF_PROC(set);
@@ -139,11 +139,20 @@ static proc_map_t proc_map;
 	DEF_PROC(expire);
 	DEF_PROC(clear_binlog);
 	DEF_PROC(ping);
-#undef DEF_PROC
+	DEF_PROC(SLAVEOF);
+	DEF_PROC(slaveof);
+	DEF_PROC(setsyncfact);
+	DEF_PROC(sethrange);
 
+#undef DEF_PROC
+/*add slave_of and set range. first set ranges is a empty function ,aways return ok*/
 
 #define PROC(c, f) {#c, f, 0, proc_##c, 0, 0, 0}
 static Command commands[] = {
+	PROC(SLAVEOF,"wt"),
+	PROC(slaveof,"wt"),
+	PROC(setsyncfact,"wt"),
+	PROC(sethrange,"wt"),
 	PROC(get, "r"),
 	PROC(set, "wt"),
 	PROC(setx, "wt"),
@@ -302,7 +311,7 @@ Server::~Server(){
 
 	log_debug("Server finalized");
 }
-
+/*server的处理函数*/
 void Server::proc(ProcJob *job){
 	job->serv = this;
 	job->result = PROC_OK;
@@ -426,6 +435,8 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	resp->push_back("ssdb-server");
 	resp->push_back("version");
 	resp->push_back(SSDB_VERSION);
+	//the dist state. 
+	resp->push_back("diststate:0");
 	{
 		resp->push_back("links");
 		char buf[32];
@@ -501,6 +512,8 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	return 0;
 }
 
+
+
 static int proc_compact(Server *serv, Link *link, const Request &req, Response *resp){
 	serv->ssdb->compact();
 	resp->push_back("ok");
@@ -565,3 +578,4 @@ static int proc_ping(Server *serv, Link *link, const Request &req, Response *res
 #include "proc_hash.cpp"
 #include "proc_zset.cpp"
 #include "proc_queue.cpp"
+#include "proc_control.cpp"

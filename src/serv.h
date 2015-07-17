@@ -112,7 +112,7 @@ static std::string serialize_req(T &req){
 			ret.append(buf);
 		}
 		if(i < req.size() - 1){
-			ret.append(" ");
+			ret.append("\r\n");
 		}
 	}
 	return ret;
