@@ -145,6 +145,8 @@ static proc_map_t proc_map;
 	DEF_PROC(sethrange);
 	DEF_PROC(rebalancefrom);
 	DEF_PROC(rebalanceto);
+	DEF_PROC(addhrange);
+	DEF_PROC(delhrange);
 
 
 #undef DEF_PROC
@@ -152,6 +154,8 @@ static proc_map_t proc_map;
 
 #define PROC(c, f) {#c, f, 0, proc_##c, 0, 0, 0}
 static Command commands[] = {
+	PROC(addhrange,"wt"),
+	PROC(delhrange,"wt"),
 	PROC(rebalancefrom,"wt"),
 	PROC(rebalanceto,"wt"),
 	PROC(SLAVEOF,"wt"),
