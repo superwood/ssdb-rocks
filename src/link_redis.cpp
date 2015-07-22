@@ -6,12 +6,14 @@ enum REPLY{
 	REPLY_BULK = 0,
 	REPLY_MULTI_BULK,
 	REPLY_INT,
-	REPLY_STATUS
+	REPLY_STATUS,
+	REPLY_CONTROLL_STATUS
 };
 
 enum STRATEGY{
 	STRATEGY_AUTO,
 	STRATEGY_PING,
+	STRATEGY_INFO,
 	STRATEGY_MGET,
 	STRATEGY_HMGET,
 	STRATEGY_HGETALL,
@@ -42,6 +44,7 @@ struct RedisCommand_raw
 
 static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_PING, "ping",		"ping",			REPLY_STATUS},
+	{STRATEGY_INFO, "info",		"info",			REPLY_CONTROLL_STATUS},
 
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
@@ -370,6 +373,24 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	
 	if(req_desc == NULL){
 		output->append("+OK\r\n");
+		return 0;
+	}
+	if(STRATEGY_INFO == req_desc->strategy ){
+		//info will reply a lot of infos
+		//output->append("+OK\r\n");
+		std::vector<std::string>::const_iterator req_it, resp_it;
+		req_it = resp.begin();
+		std::string outtmp = "";
+		for( ; req_it !=resp.end(); ++req_it){
+			const std::string &resp_val = *req_it;
+			outtmp.append(resp_val.data(), resp_val.size());
+			outtmp.append("\r\n");
+		}
+		char buf[32];
+		snprintf(buf, sizeof(buf), "$%lu\r\n", outtmp.size()-2);
+		output->append(buf);
+		output->append(outtmp.data(), outtmp.size());
+		log_debug("out put:%s outtmp:%s, size:%lu allsize:%lu",output->data(),outtmp.data(),outtmp.size(),output->size());
 		return 0;
 	}
 	if(req_desc->strategy == STRATEGY_PING){

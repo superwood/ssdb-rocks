@@ -143,12 +143,17 @@ static proc_map_t proc_map;
 	DEF_PROC(slaveof);
 	DEF_PROC(setsyncfact);
 	DEF_PROC(sethrange);
+	DEF_PROC(rebalancefrom);
+	DEF_PROC(rebalanceto);
+
 
 #undef DEF_PROC
 /*add slave_of and set range. first set ranges is a empty function ,aways return ok*/
 
 #define PROC(c, f) {#c, f, 0, proc_##c, 0, 0, 0}
 static Command commands[] = {
+	PROC(rebalancefrom,"wt"),
+	PROC(rebalanceto,"wt"),
 	PROC(SLAVEOF,"wt"),
 	PROC(slaveof,"wt"),
 	PROC(setsyncfact,"wt"),
@@ -434,13 +439,13 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	resp->push_back("ok");
 	resp->push_back("ssdb-server");
 	resp->push_back("version");
-	resp->push_back(SSDB_VERSION);
+	//resp->push_back(SSDB_VERSION);
 	//the dist state. 
 	resp->push_back("diststate:0");
 	{
-		resp->push_back("links");
+		//resp->push_back("links");
 		char buf[32];
-		snprintf(buf, sizeof(buf), "%d", serv->link_count);
+		snprintf(buf, sizeof(buf), "links:%d", serv->link_count);
 		resp->push_back(buf);
 	}
 	{
@@ -448,9 +453,9 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 		for(Command *cmd=commands; cmd->name; cmd++){
 			calls += cmd->calls;
 		}
-		resp->push_back("total_calls");
+		//resp->push_back("total_calls");
 		char buf[32];
-		snprintf(buf, sizeof(buf), "%" PRIu64, calls);
+		snprintf(buf, sizeof(buf), "total_calls:%" PRIu64, calls);
 		resp->push_back(buf);
 	}
 
@@ -471,29 +476,29 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 		if(ret == 0){
 			char buf[512];
 			
-			resp->push_back("key_range.kv");
-			snprintf(buf, sizeof(buf), "\"%s\" - \"%s\"",
+			//resp->push_back("key_range.kv");
+			snprintf(buf, sizeof(buf), "key_range.kv:\"%s\" - \"%s\"",
 				hexmem(tmp[0].data(), tmp[0].size()).c_str(),
 				hexmem(tmp[1].data(), tmp[1].size()).c_str()
 				);
 			resp->push_back(buf);
 			
-			resp->push_back("key_range.hash");
-			snprintf(buf, sizeof(buf), "\"%s\" - \"%s\"",
+			//resp->push_back("key_range.hash");
+			snprintf(buf, sizeof(buf), "key_range.hash:\"%s\" - \"%s\"",
 				hexmem(tmp[2].data(), tmp[2].size()).c_str(),
 				hexmem(tmp[3].data(), tmp[3].size()).c_str()
 				);
 			resp->push_back(buf);
 			
-			resp->push_back("key_range.zset");
-			snprintf(buf, sizeof(buf), "\"%s\" - \"%s\"",
+			//resp->push_back("key_range.zset");
+			snprintf(buf, sizeof(buf), "key_range.zset:\"%s\" - \"%s\"",
 				hexmem(tmp[4].data(), tmp[4].size()).c_str(),
 				hexmem(tmp[5].data(), tmp[5].size()).c_str()
 				);
 			resp->push_back(buf);
 			
-			resp->push_back("key_range.list");
-			snprintf(buf, sizeof(buf), "\"%s\" - \"%s\"",
+			//resp->push_back("+key_range.lisa");
+			snprintf(buf, sizeof(buf), "key_range.list:\"%s\" - \"%s\"",
 				hexmem(tmp[6].data(), tmp[6].size()).c_str(),
 				hexmem(tmp[7].data(), tmp[7].size()).c_str()
 				);
@@ -505,7 +510,7 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 		std::vector<std::string> tmp = serv->ssdb->info();
 		for(int i=0; i<(int)tmp.size(); i++){
 			std::string block = tmp[i];
-			resp->push_back(block);
+			//resp->push_back(block);
 		}
 	}
 	
