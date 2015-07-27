@@ -47,13 +47,14 @@ class BinlogQueue{
 #else
 	static const int LOG_QUEUE_SIZE  = 10000;
 #endif
+	public:
 		leveldb::DB *db;
 		uint64_t min_seq;
 		uint64_t last_seq;
 		uint64_t tran_seq;
 		int capacity;
 		leveldb::WriteBatch batch;
-
+	private:
 		volatile bool thread_quit;
 		static void* log_clean_thread_func(void *arg);
 		int del(uint64_t seq);

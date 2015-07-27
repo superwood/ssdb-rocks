@@ -445,14 +445,34 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	resp->push_back("version");
 	//resp->push_back(SSDB_VERSION);
 	//the dist state. 
-	resp->push_back("diststate:0");
+	//serv->ssdb->last_seq
+
 	{
-		//resp->push_back("links");
+		//slave status
+		char buf[32];
+		snprintf(buf, sizeof(buf), "role:%s", serv->ssdb->isslave?"slave":"master");
+		resp->push_back(buf);
+
+	}
+	{
+		//seq status
+		char buf[32];
+		snprintf(buf, sizeof(buf), "max_recv_seq:%ul", serv->ssdb->binlogs->last_seq);
+		resp->push_back(buf);
+	}
+	{
+		//dis status
+		char buf[32];
+		snprintf(buf, sizeof(buf), "diststate:%d", serv->ssdb->diststate);
+		resp->push_back(buf);
+	}
+	{
+		//links num
 		char buf[32];
 		snprintf(buf, sizeof(buf), "links:%d", serv->link_count);
 		resp->push_back(buf);
 	}
-	{
+	{//call num
 		uint64_t calls = 0;
 		for(Command *cmd=commands; cmd->name; cmd++){
 			calls += cmd->calls;
@@ -514,7 +534,7 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 		std::vector<std::string> tmp = serv->ssdb->info();
 		for(int i=0; i<(int)tmp.size(); i++){
 			std::string block = tmp[i];
-			//resp->push_back(block);
+			resp->push_back(block);
 		}
 	}
 	

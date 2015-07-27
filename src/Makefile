@@ -1,8 +1,8 @@
 include ../build_config.mk
 
-OBJS = ssdb.o t_kv.o t_hash.o t_zset.o t_queue.o link.o \
+OBJS = zmalloc.o ssdb.o t_kv.o t_hash.o t_zset.o t_queue.o link.o \
 	backend_dump.o backend_sync.o slave.o binlog.o serv.o \
-	iterator.o ttl.o
+	iterator.o ttl.o 
 UTIL_OBJS = util/log.o util/fde.o util/config.o util/bytes.o util/sorted_set.o
 EXES = ../ssdb-server
 
@@ -20,7 +20,8 @@ ssdb.o: ssdb.h ssdb.cpp
 
 iterator.o: ssdb.h iterator.h iterator.cpp
 	${CXX} ${CFLAGS} -c iterator.cpp
-
+zmalloc.o:zmalloc.h zmalloc.c
+	${CXX} ${CFLAGS} -c zmalloc.c
 t_kv.o: ssdb.h t_kv.h t_kv.cpp
 	${CXX} ${CFLAGS} -c t_kv.cpp
 
@@ -42,7 +43,7 @@ binlog.o: ssdb.h binlog.h binlog.cpp
 slave.o: ssdb.h slave.h slave.cpp
 	${CXX} ${CFLAGS} -c slave.cpp
 
-serv.o: ssdb.h serv.h serv.cpp proc_kv.cpp proc_hash.cpp proc_zset.cpp proc_queue.cpp
+serv.o: ssdb.h serv.h serv.cpp proc_kv.cpp proc_hash.cpp proc_zset.cpp proc_queue.cpp 
 	${CXX} ${CFLAGS} -c serv.cpp
 
 backend_dump.o: ssdb.h backend_dump.h backend_dump.cpp

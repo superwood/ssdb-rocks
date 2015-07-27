@@ -18,6 +18,15 @@ class HIterator;
 class ZIterator;
 class Slave;
 
+struct hashrange {
+    unsigned int low;
+    unsigned int high;
+};
+struct hashranges {
+    struct hashrange *range;
+    int len;
+};
+
 
 class SSDB{
 private:
@@ -27,8 +36,20 @@ private:
 	Config* p_conf_;	
 	int sync_speed_;
 
+public:
+	/*ranges*/
+    unsigned int dist_switch_threshold;
+    struct hashranges dist_hash_range; /* hash of key should be involved in the range */
+    struct hashranges dist_switch_range; /* hash range that we are about to switch to */
+    struct hashranges dist_delta_range;
+	/* db status */
+    int isslave;
+
+	int diststate;//db  state about distribution
+	/*db status end*/
+private:
 	std::vector<Slave *> slaves;
-	
+
 	SSDB();
 public:
 	BinlogQueue *binlogs;

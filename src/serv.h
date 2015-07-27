@@ -10,11 +10,39 @@
 #include "backend_dump.h"
 #include "backend_sync.h"
 #include "ttl.h"
-
+#include "zmalloc.h"
 #define PROC_OK			0
 #define PROC_ERROR		-1
 #define PROC_THREAD     1
 #define PROC_BACKEND	100
+
+
+
+/* Distribution state */
+#define REDIS_DIST_NONE 0
+#define REDIS_DIST_START 101
+#define REDIS_DIST_SWITCHING 102
+
+/* Distribution state - destination */
+#define REDIS_DIST_PRE_DELETING 111
+#define REDIS_DIST_CONNECT 112
+#define REDIS_DIST_CONNECTING 113
+#define REDIS_DIST_TRANSFER 114
+#define REDIS_DIST_CONNECTED 115
+
+/* Distribution state - source */
+#define REDIS_DIST_WAIT_BGSAVE_START 121
+#define REDIS_DIST_WAIT_BGSAVE_END 122
+#define REDIS_DIST_SEND_BULK 123
+#define REDIS_DIST_ONLINE 124
+#define REDIS_DIST_DELETING 125
+
+#define REDIS_DIST_MODE_NONE 0
+#define REDIS_DIST_MODE_SRC 1
+#define REDIS_DIST_MODE_DST 2
+
+
+
 
 typedef std::vector<Bytes> Request;
 typedef std::vector<std::string> Response;
@@ -22,6 +50,9 @@ typedef std::vector<std::string> Response;
 
 class Server;
 typedef int (*proc_t)(Server *serv, Link *link, const Request &req, Response *resp);
+
+
+
 
 struct Command{
 	static const int FLAG_READ		= (1 << 0);

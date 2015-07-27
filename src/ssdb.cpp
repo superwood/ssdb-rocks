@@ -42,12 +42,14 @@ int  SSDB::slave_stop(){
 		Slave* p = *it;
 		p->stop();
 	}
+	isslave=0;
 	return 0;
 }
 
 int SSDB::slave_of(const std::string &var1, const std::string &var2){
 	// slaves
 	log_debug("slave of start");
+	isslave = 1;
 	const Config *repl_conf = p_conf_->get("replication");
 	if (repl_conf != NULL) {
 		std::vector<Config *> children = repl_conf->children;
@@ -160,6 +162,8 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	}
 
 	{ // slaves
+		ssdb->isslave = 0;
+
 		const Config *repl_conf = conf.get("replication");
 		if(repl_conf != NULL){
 			ssdb->sync_speed_ = sync_speed;
