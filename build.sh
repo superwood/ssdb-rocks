@@ -132,7 +132,7 @@ echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
 echo "CLIBS += ${PLATFORM_CLIBS}" >> build_config.mk
-echo "CLIBS += -lbz2 -lz \"$LEVELDB_PATH/librocksdb.a\"" >> build_config.mk
+echo "CLIBS += -lbz2 -lz  \"$LEVELDB_PATH/librocksdb.a\"" >> build_config.mk
 echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
 
 

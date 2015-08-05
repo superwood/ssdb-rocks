@@ -14,6 +14,7 @@ enum STRATEGY{
 	STRATEGY_AUTO,
 	STRATEGY_PING,
 	STRATEGY_INFO,
+	STRATEGY_SETSYNCFACT,
 	STRATEGY_MGET,
 	STRATEGY_HMGET,
 	STRATEGY_HGETALL,
@@ -45,7 +46,7 @@ struct RedisCommand_raw
 static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_PING, "ping",		"ping",			REPLY_STATUS},
 	{STRATEGY_INFO, "info",		"info",			REPLY_CONTROLL_STATUS},
-
+	{STRATEGY_SETSYNCFACT, "setsyncfact", "setsyncfact", REPLY_STATUS},
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
 	{STRATEGY_AUTO, "set",		"set",			REPLY_STATUS},
