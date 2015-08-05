@@ -187,23 +187,23 @@ static int proc_addhrange(Server *serv, Link *link, const Request &req, Response
 		}
 		for(unsigned int i=1; i<req.size();){
 			char *eptr;
-			unsigned int low = strtoul( req[i].data(),eptr, 10 );
+			unsigned int low = strtoul( req[i].data(),&eptr, 10 );
 			i++;
-			unsigned int hight = stroul(req[i].data(), eptr,10);
+			unsigned int hight = strtoul(req[i].data(), &eptr,10);
 			i++;
 			appendHashRanges(&ranges, low, hight);
 		}
-		if( 0 != excludeHashRanges(&serv->ssdb->dist_hash_range, &ranges)){
+		if( 0 != excludeHashRanges(&serv->ssdb->hash_range, &ranges)){
 			resp->push_back("err! Hash range is invalid");
 			return 0;
 		}
 		/*no lock!   some thing will wrong!  must change to double buff+lock
 		  but in redis ,which has only one thread it works.
 		 */
-		resetHashRanges(&serv->ssdb->dist_hash_range);
-		resetHashRanges(&serv->ssdb->dist_delta_range);
-		resetHashRanges(&serv->ssdb->dist_switch_range);
-		copyHashRanges(&ranges, &serv->ssdb->dist_hash_range);
+		resetHashRanges(&serv->ssdb->hash_range);
+		resetHashRanges(&serv->ssdb->delta_range);
+		resetHashRanges(&serv->ssdb->switch_range);
+		copyHashRanges(&ranges, &serv->ssdb->hash_range);
 
 		resp->push_back("ok");
 	}
@@ -263,9 +263,9 @@ static int proc_sethrange(Server *serv, Link *link, const Request &req, Response
 		val1.append(req[1].data(), req[1].size());
 		//val2.append(req[2].data(),req[2].size());
 		if( "none" == val1  ){
-			resetHashRanges(&serv->ssdb->dist_hash_range);
-			resetHashRanges(&serv->ssdb->dist_delta_range);
-			resetHashRanges(&serv->ssdb->dist_switch_range);
+			resetHashRanges(&serv->ssdb->hash_range);
+			resetHashRanges(&serv->ssdb->delta_range);
+			resetHashRanges(&serv->ssdb->switch_range);
 		}else{
 			struct hashranges ranges;
 			if(  REDIS_DIST_NONE != serv->ssdb->diststate ){//at reb status, so can not do reb again
@@ -281,17 +281,17 @@ static int proc_sethrange(Server *serv, Link *link, const Request &req, Response
 			}
 			for(unsigned int i=1; i<req.size();){
 				char *eptr;
-				unsigned int low = strtoul( req[i].data(),eptr, 10 );
+				unsigned int low = strtoul( req[i].data(),&eptr, 10 );
 				i++;
-				unsigned int hight = stroul(req[i].data(), eptr,10);
+				unsigned int hight = strtoul(req[i].data(), &eptr,10);
 				i++;
 				appendHashRanges(&ranges, low, hight);
 			}
 
-			resetHashRanges(&serv->ssdb->dist_hash_range);
-			resetHashRanges(&serv->ssdb->dist_delta_range);
-			resetHashRanges(&serv->ssdb->dist_switch_range);
-			copyHashRanges(&ranges, &serv->ssdb->dist_hash_range);
+			resetHashRanges(&serv->ssdb->hash_range);
+			resetHashRanges(&serv->ssdb->delta_range);
+			resetHashRanges(&serv->ssdb->switch_range);
+			copyHashRanges(&ranges, &serv->ssdb->hash_range);
 		}
 
 	}
@@ -414,23 +414,23 @@ static int proc_delhrange(Server *serv, Link *link, const Request &req, Response
 		}
 		for(unsigned int i=1; i<req.size();){
 			char *eptr;
-			unsigned int low = strtoul( req[i].data(),eptr, 10 );
+			unsigned int low = strtoul( req[i].data(),&eptr, 10 );
 			i++;
-			unsigned int hight = stroul(req[i].data(), eptr,10);
+			unsigned int hight = strtoul(req[i].data(), &eptr,10);
 			i++;
 			appendHashRanges(&ranges, low, hight);
 		}
-		if( 0 != includeHashRanges(&serv->ssdb->dist_hash_range, &rangs) ){
+		if( 0 != includeHashRanges(&serv->ssdb->hash_range, &ranges) ){
 			resp->push_back("delete rang fail, Hash range is invalid");
 			return 0;
 		}
 
 		//resetHashRanges(&serv->ssdb->dist_hash_range);
-		resetHashRanges(&serv->ssdb->dist_delta_range);
-		copyHashRanges(&serv->ssdb->dist_delta_range, &rangs);
-		resetHashRanges(&serv->ssdb->dist_switch_range);
-		delHashRanges(&serv->ssdb->dist_hash_range,&serv->ssdb->dist_delta_range,&serv->ssdb->dist_switch_range);
-		serv->ssdb->dist_mode = REDIS_DIST_MODE_SRC;
+		resetHashRanges(&serv->ssdb->delta_range);
+		copyHashRanges(&serv->ssdb->delta_range, &ranges);
+		resetHashRanges(&serv->ssdb->switch_range);
+		delHashRanges(&serv->ssdb->hash_range,&serv->ssdb->delta_range,&serv->ssdb->switch_range);
+		//serv->ssdb->dist_mode = REDIS_DIST_MODE_SRC;
 
 		resp->push_back("ok");
 	}

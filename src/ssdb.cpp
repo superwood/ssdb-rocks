@@ -14,6 +14,7 @@ SSDB::SSDB(): sync_speed_(0){
 	db = NULL;
 	meta_db = NULL;
 	binlogs = NULL;
+	pfun_hash = &hash_Jenkins;
 }
 
 SSDB::~SSDB(){
@@ -44,6 +45,14 @@ int  SSDB::slave_stop(){
 	}
 	isslave=0;
 	return 0;
+}
+int SSDB::in_hashrang(const Bytes& key){
+	int index = pfun_hash(key);
+	if( index < hash_range.range->high && index >= hash_range.range->low){
+		return 1;
+	}else{
+		return 0;
+	}
 }
 
 int SSDB::slave_of(const std::string &var1, const std::string &var2){

@@ -12,7 +12,7 @@
 #include "util/thread.h"
 #include "iterator.h"
 #include "binlog.h"
-
+//#include "jhash.h"
 class KIterator;
 class HIterator;
 class ZIterator;
@@ -26,6 +26,15 @@ struct hashranges {
     struct hashrange *range;
     int len;
 };
+typedef unsigned int (*pFuncHash) ( const Bytes& key);
+
+static unsigned int hash_Jenkins(const Bytes& key){
+	//unsigned int hash = 5381;
+	//char* pstart =(char*) key.data();
+	//int len = key.size();
+	//return HASH::jhash(pstart, len, hash);
+	return 0;
+}
 
 
 class SSDB{
@@ -38,14 +47,13 @@ private:
 
 public:
 	/*ranges*/
-    unsigned int dist_switch_threshold;
-    struct hashranges dist_hash_range; /* hash of key should be involved in the range */
-    struct hashranges dist_switch_range; /* hash range that we are about to switch to */
-    struct hashranges dist_delta_range;
+    struct hashranges hash_range; /* hash of key should be involved in the range */
+	struct hashranges delta_range;
+	struct hashranges switch_range;
 	/* db status */
     int isslave;
 
-	int diststate;//db  state about distribution
+    volatile int diststate;//db  state about distribution  {0:ok, 1:readonly,2:stop}
 	/*db status end*/
 private:
 	std::vector<Slave *> slaves;
@@ -158,10 +166,12 @@ public:
 	int qslice(const Bytes &name, int64_t offset, int64_t limit,
 			std::vector<std::string> *list);
 	int qget(const Bytes &name, int64_t index, std::string *item);
-
+	int in_hashrang(const Bytes& key);
 private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
+	
+	pFuncHash pfun_hash;
 };
 
 
