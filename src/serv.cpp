@@ -457,7 +457,7 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	{
 		//seq status
 		char buf[32];
-		snprintf(buf, sizeof(buf), "max_recv_seq:%ul", serv->ssdb->binlogs->last_seq);
+		snprintf(buf, sizeof(buf), "max_recv_seq:%llu", serv->ssdb->binlogs->last_seq);
 		resp->push_back(buf);
 	}
 	{
