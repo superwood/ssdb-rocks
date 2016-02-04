@@ -14,7 +14,7 @@ SSDB::SSDB(): sync_speed_(0){
 	db = NULL;
 	meta_db = NULL;
 	binlogs = NULL;
-	pfun_hash = &hash_Jenkins;
+	diststate = DISSTATE::OK;
 }
 
 SSDB::~SSDB(){
@@ -38,12 +38,14 @@ SSDB::~SSDB(){
 	log_debug("SSDB finalized");
 }
 int  SSDB::slave_stop(){
+	isslave = 0;
 	std::vector<Slave *>::iterator it = this->slaves.begin();
 	for(; it != this->slaves.end(); ++it){
 		Slave* p = *it;
 		p->stop();
 	}
 	isslave=0;
+	diststate = DISSTATE::OK;
 	return 0;
 }
 int SSDB::in_hashrang(const Bytes& key){
@@ -59,6 +61,7 @@ int SSDB::slave_of(const std::string &var1, const std::string &var2){
 	// slaves
 	log_debug("slave of start");
 	isslave = 1;
+	diststate = diststate| DISSTATE::WRITEABLE;
 	const Config *repl_conf = p_conf_->get("replication");
 	if (repl_conf != NULL) {
 		std::vector<Config *> children = repl_conf->children;
@@ -447,3 +450,27 @@ int SSDB::key_range(std::vector<std::string> *keys) const{
 	
 	return ret;
 }
+
+bool SSDB::is_readable(){
+	if( diststate & DISSTATE::READABLE){
+		return true;
+	}
+	return false;
+}
+
+bool SSDB::is_writeable(){
+	if( diststate & DISSTATE::WRITEABLE){
+		return true;
+	}
+	return false;
+}
+
+bool SSDB::is_controlable(){
+	if( diststate & DISSTATE::CONTROLABLE){
+		return true;
+	}
+	return false;
+}
+
+
+

@@ -438,9 +438,33 @@ static int proc_delhrange(Server *serv, Link *link, const Request &req, Response
 }
 
 
+static int proc_stopwrite(Server *serv, Link *link, const Request &req, Response *resp){
+	if(req.size() < 2){
+		resp->push_back("client_error [stop]");
+	}else{
+		std::string val1;
+		val1.append(req[1].data(), req[1].size());
+		if( serv->ssdb->is_controlable()){ //stop write
+			serv->ssdb->diststate = serv->ssdb->diststate ^DISSTATE::WRITEABLE ;
+		}
+		resp->push_back("ok");
+	}
+	return 0;
 
+}
 
-
-
+static int proc_startwrite(Server *serv, Link *link, const Request &req, Response *resp){
+	if(req.size() < 2){
+		resp->push_back("client_error [stop]");
+	}else{
+		std::string val1;
+		val1.append(req[1].data(), req[1].size());
+		if( serv->ssdb->is_controlable()){ //stop write
+			serv->ssdb->diststate = serv->ssdb->diststate |DISSTATE::WRITEABLE ;
+		}
+		resp->push_back("ok");
+	}
+	return 0;
+}
 
 

@@ -64,6 +64,11 @@ static int proc_multi_hsize(Server *serv, Link *link, const Request &req, Respon
 }
 
 static int proc_multi_hset(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	if(req.size() < 4 || req.size() % 2 != 0){
 		resp->push_back("client_error");
 	}else{
@@ -90,6 +95,11 @@ static int proc_multi_hset(Server *serv, Link *link, const Request &req, Respons
 }
 
 static int proc_multi_hdel(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -157,6 +167,11 @@ static int proc_hsize(Server *serv, Link *link, const Request &req, Response *re
 }
 
 static int proc_hset(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	if(req.size() < 4){
 		resp->push_back("client_error");
 	}else{
@@ -194,6 +209,11 @@ static int proc_hget(Server *serv, Link *link, const Request &req, Response *res
 }
 
 static int proc_hdel(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -213,6 +233,11 @@ static int proc_hdel(Server *serv, Link *link, const Request &req, Response *res
 }
 
 static int proc_hclear(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	if(req.size() < 2){
 		resp->push_back("client_error");
 		return 0;
@@ -367,6 +392,7 @@ static int proc_hrlist(Server *serv, Link *link, const Request &req, Response *r
 
 // dir := +1|-1
 static int _hincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -387,10 +413,19 @@ static int _hincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 }
 
 static int proc_hincr(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
 	return _hincr(serv->ssdb, req, resp, 1);
 }
 
 static int proc_hdecr(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return ret;
+	}
+
 	return _hincr(serv->ssdb, req, resp, -1);
 }
 

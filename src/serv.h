@@ -92,8 +92,8 @@ struct ProcJob{
 
 class Server{
 	private:
-		static const int READER_THREADS = 10;
-		static const int WRITER_THREADS = 1;
+		static const int READER_THREADS = 200;
+		static const int WRITER_THREADS = 100;
 	public:
 		int link_count;
 		SSDB *ssdb;

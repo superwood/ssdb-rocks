@@ -147,13 +147,16 @@ static proc_map_t proc_map;
 	DEF_PROC(rebalanceto);
 	DEF_PROC(addhrange);
 	DEF_PROC(delhrange);
-
+	DEF_PROC(stopwrite);
+	DEF_PROC(startwrite);
 
 #undef DEF_PROC
 /*add slave_of and set range. first set ranges is a empty function ,aways return ok*/
 
 #define PROC(c, f) {#c, f, 0, proc_##c, 0, 0, 0}
 static Command commands[] = {
+	PROC(stopwrite,"w"),
+	PROC(startwrite, "w"),
 	PROC(addhrange,"wt"),
 	PROC(delhrange,"wt"),
 	PROC(rebalancefrom,"wt"),
@@ -337,6 +340,7 @@ void Server::proc(ProcJob *job){
 		job->cmd = cmd;
 		if(cmd->flags & Command::FLAG_THREAD){
 			if(cmd->flags & Command::FLAG_WRITE){
+
 				job->result = PROC_THREAD;
 				writer->push(*job);
 				return; /////
@@ -456,9 +460,16 @@ static int proc_info(Server *serv, Link *link, const Request &req, Response *res
 	}
 	{
 		//seq status
-		char buf[32];
-		snprintf(buf, sizeof(buf), "max_recv_seq:%llu", serv->ssdb->binlogs->last_seq);
-		resp->push_back(buf);
+		if( ! serv->ssdb->isslave ){
+			char buf[32];
+			snprintf(buf, sizeof(buf), "max_recv_seq:%llu", serv->ssdb->binlogs->last_seq);
+			resp->push_back(buf);
+		}
+		if(serv->ssdb->isslave ){
+			char buf[32];
+			snprintf(buf, sizeof(buf), "max_recv_seq:%llu", serv->ssdb->last_seq);
+			resp->push_back(buf);
+		}
 	}
 	{
 		//dis status
@@ -602,6 +613,15 @@ static int proc_ping(Server *serv, Link *link, const Request &req, Response *res
 	resp->push_back("ok");
 	return 0;
 }
+static int proc_notwriteable(Server *serv, Link *link, const Request &req, Response *resp){
+	if( !serv->ssdb->is_writeable() ){
+		resp->push_back("not writeable");
+		return -1;
+	}
+	return 0;
+}
+
+
 
 #include "proc_kv.cpp"
 #include "proc_hash.cpp"

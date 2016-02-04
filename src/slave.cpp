@@ -87,6 +87,7 @@ void Slave::load_status(){
 			log_error("invalid format of status");
 		}else{
 			last_seq = *((uint64_t *)(val.data()));
+			this->ssdb->last_seq = last_seq;
 			last_key.assign(val.data() + sizeof(uint64_t), val.size() - sizeof(uint64_t));
 		}
 	}
@@ -257,6 +258,7 @@ int Slave::proc_noop(const Binlog &log, const std::vector<Bytes> &req){
 	if(this->last_seq != seq){
 		log_debug("noop last_seq: %" PRIu64 ", seq: %" PRIu64 "", this->last_seq, seq);
 		this->last_seq = seq;
+		this->ssdb->last_seq = last_seq;
 		this->save_status();
 	}
 	return 0;
@@ -421,6 +423,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 			break;
 	}
 	this->last_seq = log.seq();
+	this->ssdb->last_seq = this->last_seq;
 	if(log.type() == BinlogType::COPY){
 		this->last_key = log.key().String();
 	}

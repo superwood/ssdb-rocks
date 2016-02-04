@@ -19,6 +19,12 @@ static int proc_get(Server *serv, Link *link, const Request &req, Response *resp
 }
 
 static int proc_getset(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -37,6 +43,11 @@ static int proc_getset(Server *serv, Link *link, const Request &req, Response *r
 }
 
 static int proc_set(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -52,6 +63,13 @@ static int proc_set(Server *serv, Link *link, const Request &req, Response *resp
 }
 
 static int proc_setnx(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
+
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
@@ -62,12 +80,17 @@ static int proc_setnx(Server *serv, Link *link, const Request &req, Response *re
 }
 
 static int proc_setx(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
 	Locking l(&serv->expiration->mutex);
 	if(req.size() < 4){
 		resp->push_back("client_error");
 		return 0;
 	}
-	int ret;
 	ret = serv->ssdb->set(req[1], req[2]);
 	if(ret == -1){
 		resp->push_back("error");
@@ -118,6 +141,12 @@ static int proc_multi_exists(Server *serv, Link *link, const Request &req, Respo
 }
 
 static int proc_multi_set(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
 	if(req.size() < 3 || req.size() % 2 != 1){
 		resp->push_back("client_error");
 	}else{
@@ -132,6 +161,13 @@ static int proc_multi_set(Server *serv, Link *link, const Request &req, Response
 }
 
 static int proc_multi_del(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
+
 	Locking l(&serv->expiration->mutex);
 	if(req.size() < 2){
 		resp->push_back("client_error");
@@ -173,6 +209,12 @@ static int proc_multi_get(Server *serv, Link *link, const Request &req, Response
 }
 
 static int proc_del(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
 	Locking l(&serv->expiration->mutex);
 	if(req.size() < 2){
 		resp->push_back("client_error");
@@ -261,10 +303,21 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 }
 
 static int proc_incr(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
 	return _incr(serv->ssdb, req, resp, 1);
 }
 
 static int proc_decr(Server *serv, Link *link, const Request &req, Response *resp){
+
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
 	return _incr(serv->ssdb, req, resp, -1);
 }
 
@@ -279,6 +332,12 @@ static int proc_getbit(Server *serv, Link *link, const Request &req, Response *r
 }
 
 static int proc_setbit(Server *serv, Link *link, const Request &req, Response *resp){
+	int ret = 0;
+	if( 0 != ( ret = proc_notwriteable(serv, link, req,resp) )  ){
+		return 0;
+	}
+
+
 	if(req.size() < 4){
 		resp->push_back("client_error");
 	}else{

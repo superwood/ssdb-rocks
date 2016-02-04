@@ -367,7 +367,11 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 		return 0;
 	}
 	if(resp[0] != "ok"){
-		output->append("-ERR server error\r\n");
+		//output->append("-ERR server error\r\n");
+		std::string err = "-ERR ";
+		err.append(resp[0]);
+		err.append("\r\n");
+		output->append(err);
 		return 0;
 	}
 	

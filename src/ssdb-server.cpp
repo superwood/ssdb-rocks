@@ -101,7 +101,7 @@ Link* accept_link(){
 int proc_result(ProcJob &job, ready_list_t &ready_list){	
 	Link *link = job.link;
 	int len;
-			
+
 	if(job.cmd){
 		job.cmd->calls += 1;
 		job.cmd->time_wait += job.time_wait;
@@ -128,6 +128,7 @@ int proc_result(ProcJob &job, ready_list_t &ready_list){
 		fdes->clr(link->fd(), FDEVENT_IN);
 		ready_list.push_back(link);
 	}
+
 	return PROC_OK;
 
 proc_err:

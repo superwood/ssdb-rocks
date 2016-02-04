@@ -12,7 +12,7 @@
 #include "util/thread.h"
 #include "iterator.h"
 #include "binlog.h"
-//#include "jhash.h"
+#include "jhash.h"
 class KIterator;
 class HIterator;
 class ZIterator;
@@ -29,13 +29,19 @@ struct hashranges {
 typedef unsigned int (*pFuncHash) ( const Bytes& key);
 
 static unsigned int hash_Jenkins(const Bytes& key){
-	//unsigned int hash = 5381;
-	//char* pstart =(char*) key.data();
-	//int len = key.size();
-	//return HASH::jhash(pstart, len, hash);
+	unsigned int hash = 5381;
+	char* pstart =(char*) key.data();
+	int len = key.size();
+	return HASH::jhash(pstart, len, hash);
 	return 0;
 }
-
+enum DISSTATE{
+	READABLE = 1,
+	WRITEABLE = 2,
+	CONTROLABLE = 4,
+	OK = READABLE|WRITEABLE|CONTROLABLE,
+	WRITE_READ = READABLE|WRITEABLE
+};
 
 class SSDB{
 private:
@@ -51,9 +57,10 @@ public:
 	struct hashranges delta_range;
 	struct hashranges switch_range;
 	/* db status */
-    int isslave;
-
-    volatile int diststate;//db  state about distribution  {0:ok, 1:readonly,2:stop}
+	volatile int isslave;
+	volatile uint64_t last_seq;
+    /*此处应该用状态机模式，目前先粗暴实现之*/
+    volatile int diststate;//db  state about distribution DISSTATE
 	/*db status end*/
 private:
 	std::vector<Slave *> slaves;
@@ -167,6 +174,10 @@ public:
 			std::vector<std::string> *list);
 	int qget(const Bytes &name, int64_t index, std::string *item);
 	int in_hashrang(const Bytes& key);
+	/*status*/
+	bool is_readable();
+	bool is_writeable();
+	bool is_controlable();
 private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
