@@ -174,10 +174,3 @@ static int proc_delhrange(Server *serv, Link *link, const Request &req, Response
 	return 0;
 }
 
-
-
-
-
-
-
-

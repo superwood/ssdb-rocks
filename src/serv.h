@@ -10,7 +10,7 @@
 #include "backend_dump.h"
 #include "backend_sync.h"
 #include "ttl.h"
-
+#include "event_handler.h"
 #define PROC_OK			0
 #define PROC_ERROR		-1
 #define PROC_THREAD     1
@@ -19,9 +19,10 @@
 typedef std::vector<Bytes> Request;
 typedef std::vector<std::string> Response;
 
-
+class event_handler;
 class Server;
 typedef int (*proc_t)(Server *serv, Link *link, const Request &req, Response *resp);
+
 
 struct Command{
 	static const int FLAG_READ		= (1 << 0);
@@ -39,11 +40,18 @@ struct Command{
 };
 
 struct ProcJob{
+	static const int NO_OP = 0;
+	static const int READ  = 1;
+	static const int WRITE = 2;
 	int result;
 	Server *serv;
 	Link *link;
 	Command *cmd;
+	event_handler* eh;
+	int flag;
 	double stime;
+	double tmp_stime;
+	double tmp_stime2;
 	double time_wait;
 	double time_proc;
 	
@@ -52,17 +60,21 @@ struct ProcJob{
 		serv = NULL;
 		link = NULL;
 		cmd = NULL;
+		tmp_stime2 = 0;
+		tmp_stime = 0;
 		stime = 0;
 		time_wait = 0;
 		time_proc = 0;
+		flag = 0;
 	}
 };
 
 
 class Server{
 	private:
-		static const int READER_THREADS = 10;
-		static const int WRITER_THREADS = 1;
+		int READER_THREADS; 
+		int WRITER_THREADS;
+		int POOL_NUM;
 	public:
 		int link_count;
 		SSDB *ssdb;
@@ -70,9 +82,9 @@ class Server{
 		BackendSync *backend_sync;
 		ExpirationHandler *expiration;
 
-		Server(SSDB *ssdb);
+		Server(SSDB *ssdb, int wthread, int rthread, int pool_num);
 		~Server();
-		void proc(ProcJob *job);
+		void proc(ProcJob *job,int index = 0);
 		
 		// TODO: move into Response
 		void int_reply(Response *resp, int num);

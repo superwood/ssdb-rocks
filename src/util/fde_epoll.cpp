@@ -88,7 +88,7 @@ const Fdevents::events_t* Fdevents::wait(int timeout_ms){
 	int nfds = epoll_wait(ep_fd, ep_events, MAX_FDS, timeout_ms);
 	if(nfds == -1){
 		if(errno == EINTR){
-			return &ready_events;
+			return &ready_events ;
 		}
 		return NULL;
 	}

@@ -12,6 +12,12 @@
 #include "util/strings.h"
 #include "util/file.h"
 #include "util/ip_filter.h"
+#include "reactor.h"
+#include "worker_reactor_pool.h"
+#include "mainevent_handler.h"
+#include "channelevent_handler.h"
+#include "dbioevent_handler.h"
+#include "workerevent_handler.h"
 
 #define TICK_INTERVAL       100 // ms
 #define STATUS_REPORT_TICKS (300 * 1000/TICK_INTERVAL) // second
@@ -39,6 +45,7 @@ volatile uint32_t g_ticks = 0;
 
 int main(int argc, char **argv){
 	welcome();
+	/*初始化资源，包括listen的端口，serv_link 的端口也在此初始化*/
 	init(argc, argv);
 	
 	signal(SIGPIPE, SIG_IGN);
@@ -79,6 +86,7 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+
 Link* accept_link(){
 	Link *link = serv_link->accept();
 	if(link == NULL){
@@ -101,7 +109,13 @@ Link* accept_link(){
 int proc_result(ProcJob &job, ready_list_t &ready_list){	
 	Link *link = job.link;
 	int len;
-			
+	double stime = millitime();
+	double time_wait =stime -job.tmp_stime;
+	double stime1 = 0.0;
+	double time_proc = 0.0;
+
+	double time_wait_for_q = stime -job.tmp_stime2;
+
 	if(job.cmd){
 		job.cmd->calls += 1;
 		job.cmd->time_wait += job.time_wait;
@@ -128,8 +142,12 @@ int proc_result(ProcJob &job, ready_list_t &ready_list){
 		fdes->clr(link->fd(), FDEVENT_IN);
 		ready_list.push_back(link);
 	}
-	return PROC_OK;
+	stime1 = millitime();
+	time_proc =stime1 -job.tmp_stime;
+	log_info("main w:%.3f,p:%.3f , work w:%.3f, p:%.3f, total:%3.f, readwrite:%d", time_wait,time_proc, job.time_wait, job.time_proc,
+					stime1-job.stime, job.flag);
 
+	return PROC_OK;
 proc_err:
 	fdes->del(link->fd());
 	delete link;
@@ -196,11 +214,62 @@ void run(int argc, char **argv){
 	ready_list_t ready_list_2;
 	ready_list_t::iterator it;
 	const Fdevents::events_t *events;
-	Server serv(ssdb);
+	int wthread = conf->get_num("server.wthread");
 
-	fdes->set(serv_link->fd(), FDEVENT_IN, 0, serv_link);
-	fdes->set(serv.reader->fd(), FDEVENT_IN, 0, serv.reader);
-	fdes->set(serv.writer->fd(), FDEVENT_IN, 0, serv.writer);
+	int rthread = conf->get_num("server.rthread");
+
+
+	//主线程下worker线程的个数。
+	int worker_thread = conf->get_num("server.worker_num");
+	Fdevents* wokerfdes = new Fdevents[worker_thread];
+	SelectableQueue<Link *>* quws = new SelectableQueue<Link*>[worker_thread];
+	Server serv(ssdb, wthread, rthread, worker_thread);
+
+	//初始化worker线程池 //启动 reactor线程池
+	WorkerReactorPool* wrp = new WorkerReactorPool(worker_thread);
+	wrp->reactors_->start(worker_thread);
+	//初始化worker 线程的reactor
+	reactor* w_reactor = new reactor[worker_thread];
+	for(int i=0; i<worker_thread; i++){
+		w_reactor[i].thread_id = i;
+		w_reactor[i].serverdb = &serv;
+		//每个worker的reactor采用SelectableQueue和主线程通信
+		channelevent_handler* ch = new channelevent_handler();
+		ch->set_reactor(w_reactor);
+		ch->set_queue( &(quws[i]));
+
+		w_reactor[i].add(quws[i].read_fd(), FDEVENT_IN, 0,  ch);
+
+		//每个worker线程和ssdb server的io线程之间用SelectableQueue通信
+		dbioevent_handler* dbh = new dbioevent_handler();
+		dbh->set_dbserver(&serv);
+		dbh->set_queue(  &(serv.writer[i]));
+		dbh->set_reactor(& (w_reactor[i]));
+		w_reactor[i].add(serv.writer[i].fd(),FDEVENT_IN,0,dbh);
+
+		dbioevent_handler* dbh1 = new dbioevent_handler();
+		dbh1->set_dbserver(&serv);
+		dbh1->set_queue(  &(serv.reader[i]));
+		dbh1->set_reactor(& (w_reactor[i]));
+		w_reactor[i].add(serv.reader[i].fd(),FDEVENT_IN,0,dbh1);
+
+		wrp->reactors_->push(&w_reactor[i]);//将reactor push 到线程池中
+
+	}
+
+	//主线程的 listen_fd
+	reactor main_reactor;
+	mainevent_handler* mh = new mainevent_handler();
+	mh->set_dbsever(&serv);
+	mh->set_link(serv_link);
+	mh->set_queues(quws);
+	mh->set_total(worker_thread);
+	main_reactor.add(serv_link->fd(),FDEVENT_IN , 0,mh);
+
+	//fdes->set(serv_link->fd(), FDEVENT_IN, 0, serv_link);
+
+	//fdes->set(serv.reader->fd(), FDEVENT_IN, 0, serv.reader);
+	//fdes->set(serv.writer->fd(), FDEVENT_IN, 0, serv.writer);
 	
 	uint32_t last_ticks = g_ticks;
 	
@@ -210,25 +279,27 @@ void run(int argc, char **argv){
 			last_ticks = g_ticks;
 			log_info("ssdb working, links: %d", serv.link_count);
 		}
-		
+		main_reactor.do_events(5);
+
+		/*
 		ready_list.swap(ready_list_2);
 		ready_list_2.clear();
-		
-		if(!ready_list.empty()){
+		int outjobs = 0;
+		if(!ready_list.empty()|| 0 != outjobs ){
 			// ready_list not empty, so we should return immediately
 			events = fdes->wait(0);
 		}else{
-			events = fdes->wait(50);
+			events = fdes->wait(5);
 		}
 		if(events == NULL){
 			log_fatal("events.wait error: %s", strerror(errno));
 			break;
 		}
-		
+		log_debug("events->size:%d, ready_list:%d", events->size(), ready_list.size());	
 		for(int i=0; i<(int)events->size(); i++){
 			const Fdevent *fde = events->at(i);
 			if(fde->data.ptr == serv_link){
-				Link *link = accept_link();
+				Link *link = accept_link();//新的连接过来
 				if(link){
 					serv.link_count ++;				
 					log_debug("new link from %s:%d, fd: %d, links: %d",
@@ -237,16 +308,20 @@ void run(int argc, char **argv){
 				}
 			}else if(fde->data.ptr == serv.reader || fde->data.ptr == serv.writer){
 				WorkerPool<Server::ProcWorker, ProcJob> *worker = (WorkerPool<Server::ProcWorker, ProcJob> *)fde->data.ptr;
+				outjobs = worker->out_size();
+				log_debug("out put queue size:%d", worker->out_size());
 				ProcJob job;
+				double step1 = millitime();
 				if(worker->pop(&job) == 0){
 					log_fatal("reading result from workers error!");
 					exit(0);
 				}
+				log_debug("queppop:%.3f",millitime()-step1 );
 				if(proc_result(job, ready_list) == PROC_ERROR){
 					serv.link_count --;
 				}
 			}else{
-				proc_client_event(fde, ready_list);
+				proc_client_event(fde, ready_list);//客户端连接上有读写请求
 			}
 		}
 
@@ -290,7 +365,7 @@ void run(int argc, char **argv){
 			if(proc_result(job, ready_list_2) == PROC_ERROR){
 				serv.link_count --;
 			}
-		} // end foreach ready link
+		} */// end foreach ready link
 	}
 }
 
@@ -451,6 +526,13 @@ void init(int argc, char **argv){
 			fprintf(stderr, "could not open work_dir: %s\n", work_dir.c_str());
 			exit(0);
 		}
+		log_info("binlogs:%ul", (unsigned long long) ssdb->binlogs);
+		if( ssdb->binlogs == NULL){
+			ssdb->binlogs =new BinlogQueue(ssdb->db);
+			log_info("binlogs:%ul", (unsigned long long) ssdb->binlogs);
+		}
+
+
 	}
 
 	write_pidfile();

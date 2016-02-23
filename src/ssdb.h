@@ -20,7 +20,7 @@ class Slave;
 
 
 class SSDB{
-private:
+public:
 	leveldb::DB* db;
 	leveldb::DB* meta_db;
 	leveldb::Options options;

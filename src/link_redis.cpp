@@ -14,7 +14,6 @@ enum STRATEGY{
 	STRATEGY_AUTO,
 	STRATEGY_PING,
 	STRATEGY_INFO,
-	STRATEGY_SETSYNCFACT,
 	STRATEGY_MGET,
 	STRATEGY_HMGET,
 	STRATEGY_HGETALL,
@@ -46,7 +45,7 @@ struct RedisCommand_raw
 static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_PING, "ping",		"ping",			REPLY_STATUS},
 	{STRATEGY_INFO, "info",		"info",			REPLY_CONTROLL_STATUS},
-	{STRATEGY_SETSYNCFACT, "setsyncfact", "setsyncfact", REPLY_STATUS},
+
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
 	{STRATEGY_AUTO, "set",		"set",			REPLY_STATUS},
@@ -349,7 +348,7 @@ const std::vector<Bytes>* RedisLink::recv_req(Buffer *input){
 	
 	return &recv_bytes;
 }
-
+//send response  wuchao
 int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	if(resp[0] == "error" || resp[0] == "fail"){
 		output->append("-ERR \r\n");

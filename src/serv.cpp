@@ -58,6 +58,7 @@ static proc_map_t proc_map;
 	DEF_PROC(scan);
 	DEF_PROC(rscan);
 	DEF_PROC(keys);
+
 	DEF_PROC(exists);
 	DEF_PROC(multi_exists);
 	DEF_PROC(multi_get);
@@ -162,32 +163,32 @@ static Command commands[] = {
 	PROC(slaveof,"wt"),
 	PROC(setsyncfact,"wt"),
 	PROC(sethrange,"wt"),
-	PROC(get, "r"),
+	PROC(get, "rt"),
 	PROC(set, "wt"),
 	PROC(setx, "wt"),
 	PROC(setnx, "wt"),
 	PROC(getset, "wt"),
-	PROC(getbit, "r"),
+	PROC(getbit, "rt"),
 	PROC(setbit, "wt"),
-	PROC(countbit, "r"),
-	PROC(substr, "r"),
-	PROC(getrange, "r"),
-	PROC(strlen, "r"),
-	PROC(redis_bitcount, "r"),
+	PROC(countbit, "rt"),
+	PROC(substr, "rt"),
+	PROC(getrange, "rt"),
+	PROC(strlen, "rt"),
+	PROC(redis_bitcount, "rt"),
 	PROC(del, "wt"),
 	PROC(incr, "wt"),
 	PROC(decr, "wt"),
 	PROC(scan, "rt"),
 	PROC(rscan, "rt"),
 	PROC(keys, "rt"),
-	PROC(exists, "r"),
-	PROC(multi_exists, "r"),
+	PROC(exists, "rt"),
+	PROC(multi_exists, "rt"),
 	PROC(multi_get, "rt"),
 	PROC(multi_set, "wt"),
 	PROC(multi_del, "wt"),
 
-	PROC(hsize, "r"),
-	PROC(hget, "r"),
+	PROC(hsize, "rt"),
+	PROC(hget, "rt"),
 	PROC(hset, "wt"),
 	PROC(hdel, "wt"),
 	PROC(hincr, "wt"),
@@ -200,9 +201,9 @@ static Command commands[] = {
 	PROC(hvals, "rt"),
 	PROC(hlist, "rt"),
 	PROC(hrlist, "rt"),
-	PROC(hexists, "r"),
-	PROC(multi_hexists, "r"),
-	PROC(multi_hsize, "r"),
+	PROC(hexists, "rt"),
+	PROC(multi_hexists, "rt"),
+	PROC(multi_hsize, "rt"),
 	PROC(multi_hget, "rt"),
 	PROC(multi_hset, "wt"),
 	PROC(multi_hdel, "wt"),
@@ -212,7 +213,7 @@ static Command commands[] = {
 	PROC(zrrank, "rt"),
 	PROC(zrange, "rt"),
 	PROC(zrrange, "rt"),
-	PROC(zsize, "r"),
+	PROC(zsize, "rt"),
 	PROC(zget, "rt"),
 	PROC(zset, "wt"),
 	PROC(zdel, "wt"),
@@ -229,16 +230,16 @@ static Command commands[] = {
 	PROC(zavg, "rt"),
 	PROC(zremrangebyrank, "wt"),
 	PROC(zremrangebyscore, "wt"),
-	PROC(zexists, "r"),
-	PROC(multi_zexists, "r"),
-	PROC(multi_zsize, "r"),
+	PROC(zexists, "rt"),
+	PROC(multi_zexists, "rt"),
+	PROC(multi_zsize, "rt"),
 	PROC(multi_zget, "rt"),
 	PROC(multi_zset, "wt"),
 	PROC(multi_zdel, "wt"),
 
-	PROC(qsize, "r"),
-	PROC(qfront, "r"),
-	PROC(qback, "r"),
+	PROC(qsize, "rt"),
+	PROC(qfront, "rt"),
+	PROC(qback, "rt"),
 	PROC(qpush, "wt"),
 	PROC(qpush_front, "wt"),
 	PROC(qpush_back, "wt"),
@@ -251,19 +252,19 @@ static Command commands[] = {
 	PROC(qrlist, "rt"),
 	PROC(qslice, "rt"),
 	PROC(qrange, "rt"),
-	PROC(qget, "r"),
+	PROC(qget, "rt"),
 
 	PROC(clear_binlog, "wt"),
 
 	PROC(dump, "b"),
 	PROC(sync140, "b"),
-	PROC(info, "r"),
+	PROC(info, "rt"),
 	// doing compaction in a reader thread, because we have only one
 	// writer thread(for performance reason), we don't want to block writes
 	PROC(compact, "rt"),
-	PROC(key_range, "r"),
+	PROC(key_range, "rt"),
 
-	PROC(ttl, "r"),
+	PROC(ttl, "rt"),
 	PROC(expire, "wt"),
 	PROC(ping, "r"),
 
@@ -271,12 +272,14 @@ static Command commands[] = {
 };
 #undef PROC
 
-Server::Server(SSDB *ssdb){
+Server::Server(SSDB *ssdb, int wthread, int rthread, int pools){
 	this->ssdb = ssdb;
 	link_count = 0;
 	backend_dump = new BackendDump(ssdb);
 	backend_sync = new BackendSync(ssdb);
-
+	WRITER_THREADS = 24;
+	READER_THREADS = 24;
+	POOL_NUM = pools;
 	for(Command *cmd=commands; cmd->name; cmd++){
 		for(const char *p=cmd->sflags; *p!='\0'; p++){
 			switch(*p){
@@ -296,15 +299,25 @@ Server::Server(SSDB *ssdb){
 		}
 		proc_map[cmd->name] = cmd;
 	}
+	WRITER_THREADS = wthread;
+	READER_THREADS = rthread;
 	// for k-v data, list === keys
 	proc_map["list"] = proc_map["keys"];
 
 	expiration = new ExpirationHandler(ssdb);
 	
-	writer = new WorkerPool<ProcWorker, ProcJob>("writer");
-	writer->start(WRITER_THREADS);
-	reader = new WorkerPool<ProcWorker, ProcJob>("reader");
-	reader->start(READER_THREADS);
+	writer = new WorkerPool<ProcWorker, ProcJob>[POOL_NUM];
+	//writer->start(WRITER_THREADS);
+	reader = new WorkerPool<ProcWorker, ProcJob>[POOL_NUM];
+	//reader->start(READER_THREADS);
+
+	for(int i=0; i<POOL_NUM;i++){
+		writer[i].set_name("writer");
+		writer[i].start(WRITER_THREADS);
+
+		reader[i].set_name("reader");
+		reader[i].start(READER_THREADS);
+	}
 }
 
 Server::~Server(){
@@ -313,18 +326,24 @@ Server::~Server(){
 	
 	delete expiration;
 	
-	writer->stop();
-	delete writer;
-	reader->stop();
-	delete reader;
+	for(int i=0; i<POOL_NUM;i++){
+		writer[i].stop();
+		reader[i].stop();
+	}
+
+	//writer->stop();
+	delete []writer;
+	//reader->stop();
+	delete []reader;
 
 	log_debug("Server finalized");
 }
 /*server的处理函数*/
-void Server::proc(ProcJob *job){
+void Server::proc(ProcJob *job, int index){
 	job->serv = this;
 	job->result = PROC_OK;
 	job->stime = millitime();
+	job->tmp_stime = millitime();
 	const Request *req = job->link->last_recv();
 
 	Response resp;
@@ -338,11 +357,14 @@ void Server::proc(ProcJob *job){
 		if(cmd->flags & Command::FLAG_THREAD){
 			if(cmd->flags & Command::FLAG_WRITE){
 				job->result = PROC_THREAD;
-				writer->push(*job);
+				job->flag = ProcJob::WRITE;
+				writer[index].push(*job);
+				log_debug("writer queue size:%u", writer[index].qsize());
 				return; /////
 			}else if(cmd->flags & Command::FLAG_READ){
 				job->result = PROC_THREAD;
-				reader->push(*job);
+				job->flag = ProcJob::READ;
+				reader[index].push(*job);
 				return; /////
 			}else{
 				log_error("bad command config: %s", cmd->name);
@@ -350,9 +372,10 @@ void Server::proc(ProcJob *job){
 		}
 
 		proc_t p = cmd->proc;
-		job->time_wait = 1000 *(millitime() - job->stime);
+		job->time_wait = (millitime() - job->stime);
 		job->result = (*p)(this, job->link, *req, &resp);
-		job->time_proc = 1000 *(millitime() - job->stime);
+		job->time_proc = (millitime() - job->stime);
+		job->tmp_stime = millitime();
 	}
 	if(job->result == PROC_BACKEND){
 		return;
@@ -408,10 +431,10 @@ int Server::ProcWorker::proc(ProcJob *job){
 	proc_t p = job->cmd->proc;
 	job->result = (*p)(job->serv, job->link, *req, &resp);
 	double etime = millitime();
-	job->time_wait = 1000 * (stime - job->stime);
-	job->time_proc = 1000 *(etime - stime);
-
-	if(job->link->send(resp) == -1){
+	job->time_wait = (stime - job->stime);
+	job->time_proc = (etime - stime);
+	job->tmp_stime = etime;//刷新job完成时间，用以统计下一阶段耗时。
+	if(job->link->send(resp) == -1){//并未真真写出数据，仅仅将处理结果写入buff
 		job->result = PROC_ERROR;
 	}else{
 		log_debug("w:%.3f,p:%.3f, req: %s, resp: %s",

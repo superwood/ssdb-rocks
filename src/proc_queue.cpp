@@ -61,11 +61,16 @@ int proc_qpush_func(Server *serv, Link *link, const Request &req, Response *resp
 	if(req.size() < 3){
 		resp->push_back("client_error");
 	}else{
+		//double step1 = millitime();
+		//double step2 = 0;
+		//double step3 = 0;
+
 		int64_t size = 0;
 		std::vector<Bytes>::const_iterator it;
 		it = req.begin() + 2;
 		for(; it != req.end(); it += 1){
 			const Bytes &item = *it;
+
 			if(front_or_back == QFRONT){
 				size = serv->ssdb->qpush_front(req[1], item);
 			}else{
@@ -75,6 +80,8 @@ int proc_qpush_func(Server *serv, Link *link, const Request &req, Response *resp
 				resp->push_back("error");
 				return 0;
 			}
+			//step2 = millitime();
+
 		}
 		
 		char buf[20];

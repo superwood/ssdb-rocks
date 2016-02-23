@@ -4,6 +4,7 @@
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
+#include "leveldb/statistics.h"
 #include <stdlib.h>
 #include "t_kv.h"
 #include "t_hash.h"
@@ -28,9 +29,9 @@ SSDB::~SSDB(){
 	if(db){
 		delete db;
 	}
-	if(options.filter_policy){
-		delete options.filter_policy;
-	}
+	//if(options.filter_policy){
+	//	delete options.filter_policy;
+	//}
 	if(meta_db){
 		delete meta_db;
 	}
@@ -91,11 +92,24 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	std::string meta_db_path = base_dir + "/meta";
 	size_t cache_size = (size_t)conf.get_num("leveldb.cache_size");
 	int write_buffer_size = conf.get_num("leveldb.write_buffer_size");
+	int max_write_buffer_number = conf.get_num("leveldb.max_write_buffer_number");
+	
 	int block_size = conf.get_num("leveldb.block_size");
 	std::string compression = conf.get_str("leveldb.compression");
 	std::string binlog_onoff = conf.get_str("replication.binlog");
 	int sync_speed = conf.get_num("replication.sync_speed");
-
+	int level_num = conf.get_num("leveldb.level_num");
+	int threadnum = conf.get_num("leveldb.threadnum");
+	int level0_stop = conf.get_num("leveldb.level0stopnum");
+	int level0_slow = conf.get_num("leveldb.level0slownum");
+	int level0_compaction = conf.get_num("leveldb.level0compaction");
+	int waltime = conf.get_num("leveldb.waltime");
+	int walsize = conf.get_num("leveldb.walsize");
+	int autocompactions = conf.get_num("leveldb.autocompactions");
+	std::string db_log_dir = conf.get_str("leveldb.logdir");
+	int backthreadlow = conf.get_num("leveldb.backthreadlow");
+	int backthreadhigh = conf.get_num("leveldb.backthreadhigh");
+	int write_buffer_number_to_merge = conf.get_num("level.write_buffer_number_to_merge");
 	strtolower(&compression);
 	if(compression != "yes"){
 		compression = "no";
@@ -109,10 +123,14 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 		cache_size = 8;
 	}
 	if(write_buffer_size <= 0){
-		write_buffer_size = 4;
+		write_buffer_size = 64;
 	}
+	if(max_write_buffer_number <= 0){
+		max_write_buffer_number = 4;
+	}
+
 	if(block_size <= 0){
-		block_size = 4;
+		block_size = 1024;
 	}
 
 	log_info("main_db          : %s", main_db_path.c_str());
@@ -120,6 +138,7 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	log_info("cache_size       : %d MB", cache_size);
 	log_info("block_size       : %d KB", block_size);
 	log_info("write_buffer     : %d MB", write_buffer_size);
+	log_info("write_buffer_num     : %d num", max_write_buffer_number);
 	log_info("compression      : %s", compression.c_str());
 	log_info("binlog           : %s", binlog_onoff.c_str());
 	log_info("sync_speed       : %d MB/s", sync_speed);
@@ -129,15 +148,46 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 	ssdb->p_conf_ =(Config *) (&conf);
 	//
 	ssdb->options.create_if_missing = true;
-	ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
-	ssdb->options.block_cache = leveldb::NewLRUCache(cache_size * 1048576);
-	ssdb->options.block_size = block_size * 1024;
+	//ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
+	//ssdb->options.block_cache = leveldb::NewLRUCache(cache_size * 1048576);
+	//ssdb->options.block_size = block_size * 1024;
+	
+	
 	ssdb->options.write_buffer_size = write_buffer_size * 1024 * 1024;
+	ssdb->options.num_levels = level_num;
+	ssdb->options.level0_stop_writes_trigger = level0_stop;
+	ssdb->options.level0_slowdown_writes_trigger = level0_slow;
+	ssdb->options.level0_file_num_compaction_trigger = level0_compaction;
+	ssdb->options.WAL_ttl_seconds = waltime;
+	ssdb->options.WAL_size_limit_MB = walsize;
+	ssdb->options.db_log_dir = db_log_dir;
+	ssdb->options.max_write_buffer_number = max_write_buffer_number;
+	ssdb->options.IncreaseParallelism(threadnum);
+	ssdb->options.max_background_flushes = 4;
+	ssdb->options.max_background_compactions = backthreadlow;
+	ssdb->options.env = leveldb::Env::Default();
+	ssdb->options.env->SetBackgroundThreads(backthreadlow, leveldb::Env::LOW);	
+	ssdb->options.env->SetBackgroundThreads(backthreadhigh, leveldb::Env::HIGH);	
+	//ssdb->options.disable_seek_compaction = true;
+	//ssdb->options.min_write_buffer_number_to_merge = write_buffer_number_to_merge;
+	ssdb->options.table_cache_numshardbits = 2;
+	ssdb->options.disable_auto_compactions = false;
+	if(0 == autocompactions){
+		ssdb->options.disable_auto_compactions = true;
+	}
+
 	if(compression == "yes"){
-		ssdb->options.compression = leveldb::kSnappyCompression;
+		//ssdb->options.compression = leveldb::kSnappyCompression;
+		ssdb->options.compression = leveldb::kZlibCompression;//leveldb::kSnappyCompression;
 	}else{
 		ssdb->options.compression = leveldb::kNoCompression;
 	}
+	{
+		std::shared_ptr<rocksdb::Statistics> dbstats;
+		dbstats = rocksdb::CreateDBStatistics();
+		ssdb->options.statistics = dbstats;
+	}
+
 
 	leveldb::Status status;
 	{
@@ -151,7 +201,7 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 
 	status = leveldb::DB::Open(ssdb->options, main_db_path, &ssdb->db);
 	if(!status.ok()){
-		log_error("open main_db failed");
+		log_error("open main_db:%s failed:%s", main_db_path.c_str(), status.ToString().c_str());
 		goto err;
 	}
 	ssdb->binlogs = new BinlogQueue(ssdb->db);
@@ -195,12 +245,13 @@ SSDB* SSDB::open(const Config &conf, const std::string &base_dir){
 			}
 		}
 	}
-
+	log_info("binlogs:%ul", (unsigned long long) ssdb->binlogs);
 	return ssdb;
 err:
 	if(ssdb){
 		delete ssdb;
 	}
+	log_info("binlogs:NULL");
 	return NULL;
 }
 

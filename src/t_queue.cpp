@@ -2,6 +2,7 @@
 #include "ssdb.h"
 #include "leveldb/write_batch.h"
 
+
 static int qget_by_seq(leveldb::DB* db, const Bytes &name, uint64_t seq, std::string *val){
 	std::string key = encode_qitem_key(name, seq);
 	leveldb::Status s;
@@ -114,7 +115,18 @@ int SSDB::qback(const Bytes &name, std::string *item){
 }
 
 int64_t SSDB::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type){
+//	double step1 = millitime();
+//	double step2 = 0;
+//	double step3 = 0;
+//	double step4 = 0;
+//	double step5 = 0;
+//	double step6 = 0;
+//	double step7 = 0;
+//	double step8 = 0;
+//	double step9 = 0;
 	Transaction trans(binlogs);
+	//step2 = millitime();
+
 
 	int ret;
 	// generate seq
@@ -123,6 +135,7 @@ int64_t SSDB::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_bac
 	if(ret == -1){
 		return -1;
 	}
+	//step3 = millitime();
 	// update front and/or back
 	if(ret == 0){
 		seq = QITEM_SEQ_INIT;
@@ -132,8 +145,10 @@ int64_t SSDB::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_bac
 		}
 		ret = qset_one(this, name, QBACK_SEQ, Bytes(&seq, sizeof(seq)));
 	}else{
+
 		seq += (front_or_back_seq == QFRONT_SEQ)? -1 : +1;
 		ret = qset_one(this, name, front_or_back_seq, Bytes(&seq, sizeof(seq)));
+		//step4 = step5 = millitime();
 	}
 	if(ret == -1){
 		return -1;
@@ -148,25 +163,30 @@ int64_t SSDB::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_bac
 	if(ret == -1){
 		return -1;
 	}
-
+	//step6 = millitime();
 	std::string buf = encode_qitem_key(name, seq);
 	if(front_or_back_seq == QFRONT_SEQ){
 		binlogs->add_log(log_type, BinlogCommand::QPUSH_FRONT, buf);
 	}else{
 		binlogs->add_log(log_type, BinlogCommand::QPUSH_BACK, buf);
 	}
-	
+	//step7 = millitime();
 	// update size
 	int64_t size = incr_qsize(this, name, +1);
 	if(size == -1){
 		return -1;
 	}
+	//step8 = millitime();
 
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
 		log_error("Write error!");
 		return -1;
 	}
+	//step9 = millitime();
+	//log_info("trans:%.3f,qget_uint64:%.3f, qset_one:%.3f，qset_one:%.3f，qset_one:%.3f，"
+	//	"binlogs：%.3f, incr_qsize:%.3f,binlogs_commit:%.3f", step2-step1,step3-step2,step4-step3
+	//	,step5-step4,step6-step5,step7-step6,step8-step7,step9-step8);
 	return size;
 }
 

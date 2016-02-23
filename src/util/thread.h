@@ -94,7 +94,15 @@ class SelectableQueue{
 		int fd(){
 			return fds[0];
 		}
-
+		int write_fd(){
+			return fds[1];
+		}
+		int read_fd(){
+			return fds[0];
+		}
+		int size(){
+			return items.size();
+		}
 		// multi writer
 		int push(const T item);
 		// single reader
@@ -132,13 +140,21 @@ class WorkerPool{
 		};
 		static void* _run_worker(void *arg);
 	public:
-		WorkerPool(const char *name="");
+		WorkerPool(const char *name);
+		WorkerPool();
 		~WorkerPool();
+
+		void set_name(const char* name);
 
 		int fd(){
 			return results.fd();
 		}
-		
+		int qsize(){
+			return jobs.size();
+		}
+		int out_size(){
+			return results.size();
+		}
 		int start(int num_workers);
 		int stop();
 		
@@ -299,6 +315,16 @@ WorkerPool<W, JOB>::WorkerPool(const char *name){
 }
 
 template<class W, class JOB>
+WorkerPool<W, JOB>::WorkerPool(){
+	this->name = "null";
+	this->started = false;
+}
+template<class W, class JOB>
+void WorkerPool<W, JOB>::set_name(const char* name){
+	this->name = name;
+}
+
+template<class W, class JOB>
 WorkerPool<W, JOB>::~WorkerPool(){
 	if(started){
 		stop();
@@ -334,6 +360,7 @@ void* WorkerPool<W, JOB>::_run_worker(void *arg){
 			break;
 		}
 		worker->proc(&job);
+
 		if(tp->results.push(job) == -1){
 			fprintf(stderr, "results.push error\n");
 			::exit(0);
