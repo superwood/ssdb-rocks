@@ -1,13 +1,13 @@
 #!/bin/sh
 BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-3.3.1"
-LEVELDB_PATH="$BASE_DIR/deps/rocksdb-master"
+#LEVELDB_PATH="$BASE_DIR/deps/rocksdb-master"
+##LEVELDB_PATH="${BASE_DIR}/../rocksdb/rocksdb-3.11.fb/"
+LEVELDB_PATH="${BASE_DIR}/deps/rocksdb-4.1.fb/"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
 
 ln -sf $LEVELDB_PATH/include/rocksdb $LEVELDB_PATH/include/leveldb
 mkdir -p var var_slave
-
-
 
 if test -z "$TARGET_OS"; then
 	TARGET_OS=`uname -s`
@@ -124,15 +124,13 @@ echo "JEMALLOC_PATH=$JEMALLOC_PATH" >> build_config.mk
 echo "SNAPPY_PATH=$SNAPPY_PATH" >> build_config.mk
 
 echo "CFLAGS=" >> build_config.mk
-##no debug
-##echo "CFLAGS = -std=c++0x -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS = -ggdb -std=c++0x -DDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
 echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
 echo "CLIBS += ${PLATFORM_CLIBS}" >> build_config.mk
-echo "CLIBS += -lbz2 -lz  \"$LEVELDB_PATH/librocksdb.a\"" >> build_config.mk
+echo "CLIBS +=  -lbz2 -lz -llz4     \"$LEVELDB_PATH/librocksdb.a\"" >> build_config.mk
 echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
 
 
