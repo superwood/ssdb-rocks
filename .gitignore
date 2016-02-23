@@ -28,4 +28,18 @@ src/util/test_sorted_set
 deps/rocksdb-master/include/leveldb
 deps/rocksdb-master/include/rocksdb/rocksdb
 
+###
 
+.cproject
+.project
+conf/
+data0/
+data00/
+data1/
+data11/
+ssdb.conf_test
+ssdb1.conf
+start0.sh
+start1.sh
+test/
+var1/
