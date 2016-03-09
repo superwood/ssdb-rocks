@@ -12,6 +12,7 @@
 #include "reactor.h"
 #include "include.h"
 #include "workerevent_handler.h"
+#include "log.h"
 class channelevent_handler: public event_handler {
 public:
 	channelevent_handler();

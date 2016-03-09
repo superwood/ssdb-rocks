@@ -99,7 +99,7 @@ Link* accept_link(){
 		return NULL;
 	}
 				
-	link->nodelay();
+	link->nodenodelaylay();
 	link->noblock();
 	link->create_time = millitime();
 	link->active_time = link->create_time;

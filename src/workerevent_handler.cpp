@@ -64,6 +64,8 @@ int workerevent_handler::process(const Fdevent *fde){
 	if( NULL == link_ || link_->error() ){
 		return -1;
 	}
+	log_debug("worker reactor %d receive link, remote host %s:%d",
+			rtr_->thread_id, link_->remote_ip, link_->remote_port);
 
 	if(fde->events & FDEVENT_IN){//可读事件触发
 		return process_read();

@@ -55,6 +55,8 @@ int dbioevent_handler::process_read(ProcJob &job){//处理fd上剩余的请求
 }
 int dbioevent_handler::process_res(ProcJob &job){
 	Link *link = job.link;
+	log_debug("worker reactor %d receive link, remote host %s:%d",
+			rtr_->thread_id, link->remote_ip, link->remote_port);
 	int len;
 	double stime = millitime();
 	double time_wait =stime -job.tmp_stime;

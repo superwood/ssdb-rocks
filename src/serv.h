@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <atomic>
 #include "util/thread.h"
 #include "ssdb.h"
 #include "backend_dump.h"
@@ -77,6 +78,7 @@ class Server{
 		int POOL_NUM;
 	public:
 		int link_count;
+		//atomic_long link_count;
 		SSDB *ssdb;
 		BackendDump *backend_dump;
 		BackendSync *backend_sync;

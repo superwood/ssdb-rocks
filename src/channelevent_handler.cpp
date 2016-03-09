@@ -27,6 +27,8 @@ int channelevent_handler::process(const Fdevent *fde){
 		link = NULL;
 		return 0;
 	}
+	log_debug("worker reactor %d receive link, remote host %s:%d",
+			rtr_->thread_id, link->remote_ip, link->remote_port);
 
 	workerevent_handler* w_handler = new workerevent_handler();
 	w_handler->set_dbserver(rtr_->serverdb);
